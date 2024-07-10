@@ -317,7 +317,7 @@ def read_caption(captions, sample_idx):
     return video_caption
 
 
-def run_one_question(idx, video_id, ann, all_caps, all_answers):
+def run_one_question(video_id, ann, caps, all_answers):
     count_frame = 0
     corr = 0
     question = ann["question"]
@@ -334,9 +334,9 @@ def run_one_question(idx, video_id, ann, all_caps, all_answers):
         + " ".join([f"{i}. {ans}" for i, ans in enumerate(answers)])
     )
     # import pdb; pdb.set_trace()
-    num_frames = len(all_caps[video_id])
+    num_frames = len(caps)
     sample_idx = np.linspace(1, num_frames, num=5, dtype=int).tolist()
-    video_caption_new = read_caption(all_caps[video_id], sample_idx)
+    video_caption_new = read_caption(caps, sample_idx)
     previous_prompt, answer = ask_gpt_caption(
         formatted_question, video_caption_new, num_frames
     )
@@ -378,7 +378,7 @@ def run_one_question(idx, video_id, ann, all_caps, all_answers):
             sample_idx = sorted(sample_idx)
             logger.info(str(sample_idx))
             video_caption_new = read_caption(
-                all_caps[video_id], sample_idx
+                caps, sample_idx
             )
 
             previous_prompt, answer = ask_gpt_caption_step(
@@ -427,7 +427,7 @@ def run_one_question(idx, video_id, ann, all_caps, all_answers):
             sample_idx = sorted(sample_idx)
             logger.info(str(sample_idx))
             video_caption_new = read_caption(
-                all_caps[video_id], sample_idx
+                caps, sample_idx
             )
             answer, _ = generate_final_answer(
                 formatted_question, video_caption_new, num_frames
@@ -464,25 +464,13 @@ def main():
     all_answers = {}
 
     tasks = [
-        (idx, video_id, anns[video_id], all_caps, all_answers)
-        for idx, video_id in enumerate(list(anns.keys()))
+        (video_id, anns[video_id], all_caps[video_id], all_answers)
+        for video_id in list(anns.keys())
     ]
     with ThreadPoolExecutor(max_workers=1) as executor:
         executor.map(
             lambda p: run_one_question(*p), tasks
         )  # Unpack each tuple in the tasks list
-
-    # for task in tasks:
-    #     run_one_question(*task)
-
-    # corr=0.0
-    # logger.info('Start A New Job!!!')
-    # count_frame = 0
-    # question = "why did the boy clap his hands when he ran to the christmas tree?\n0. adjust the tree\n1. get away the dust\n2. dancing\n3. pressed a button to activate\n4. presents"
-
-    # for idx, (video_id, ann) in enumerate(list(anns.items())[:3]):
-    #     corr, count_frame = run_one_question(idx, video_id, ann, all_caps, all_answers)
-    #     print(corr, count_frame)
 
     json_file_name = "egochema_subset_5cap_selfevalCoT_step3_recap_eva448_newcap_v14_allfeat_subset_final.json"
     save_to_json(all_answers, json_file_name)
