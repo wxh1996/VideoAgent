@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 import redis
 
-from utils_clip_xiaohan import frame_retrieval_seg_ego
+from utils_clip import frame_retrieval_seg_ego
 from utils_general import get_from_cache, save_to_cache
 
 logger = logging.getLogger(__name__)
@@ -247,9 +247,7 @@ def read_caption(captions, sample_idx):
     return video_caption
 
 
-def run_one_question(video_id, ann, caps, all_answers):
-    count_frame = 0
-    corr = 0
+def run_one_question(video_id, ann, caps, logs):
     question = ann["question"]
     answers = [ann[f"option {i}"] for i in range(5)]
     formatted_question = (
@@ -261,14 +259,13 @@ def run_one_question(video_id, ann, caps, all_answers):
 
     ### Step 1 ###
     sample_idx = np.linspace(1, num_frames, num=5, dtype=int).tolist()
-    video_caption_new = read_caption(caps, sample_idx)
-    previous_prompt, answer = ask_gpt_caption(
-        formatted_question, video_caption_new, num_frames
+    sampled_caps = read_caption(caps, sample_idx)
+    previous_prompt, answer_str = ask_gpt_caption(
+        formatted_question, sampled_caps, num_frames
     )
-    answer_idx = parse_text_find_number(answer)
-    confidence = self_eval(previous_prompt, answer)
-    confidence = parse_text_find_confidence(confidence)
-    count_frame += 5
+    answer = parse_text_find_number(answer_str)
+    confidence_str = self_eval(previous_prompt, answer_str)
+    confidence = parse_text_find_confidence(confidence_str)
 
     ### Step 2 ###
     if confidence < 3:
@@ -279,39 +276,31 @@ def run_one_question(video_id, ann, caps, all_answers):
             }
             candiate_descriptions = generate_description_step(
                 formatted_question,
-                video_caption_new,
+                sampled_caps,
                 num_frames,
                 segment_des,
             )
             parsed_candiate_descriptions = parse_json(candiate_descriptions)
-            frame_idx, frame_lenth = frame_retrieval_seg_ego(
+            frame_idx = frame_retrieval_seg_ego(
                 parsed_candiate_descriptions["frame_descriptions"], video_id, sample_idx
             )
-            for k, desc in enumerate(
-                parsed_candiate_descriptions["frame_descriptions"]
-            ):
-                desc["selected frame"] = frame_idx[k]
-                sample_idx.append(frame_idx[k])
-            sample_idx = list(set(sample_idx))
-            sample_idx = sorted(sample_idx)
-            logger.info(str(sample_idx))
-            video_caption_new = read_caption(
-                caps, sample_idx
-            )
+            logger.info(f"Step 2: {frame_idx}")
+            sample_idx += frame_idx
+            sample_idx = sorted(list(set(sample_idx)))
 
-            previous_prompt, answer = ask_gpt_caption_step(
-                formatted_question, video_caption_new, num_frames
+            sampled_caps = read_caption(caps, sample_idx)
+            previous_prompt, answer_str = ask_gpt_caption_step(
+                formatted_question, sampled_caps, num_frames
             )
-            answer_idx = parse_text_find_number(answer)
-            confidence = self_eval(previous_prompt, answer)
-            confidence = parse_text_find_confidence(confidence)
-            count_frame = len(sample_idx)
+            answer = parse_text_find_number(answer_str)
+            confidence_str = self_eval(previous_prompt, answer_str)
+            confidence = parse_text_find_confidence(confidence_str)
         except Exception as e:
             logger.error(f"Step 2 Error: {e}")
-            answer = generate_final_answer(
-                formatted_question, video_caption_new, num_frames
+            answer_str = generate_final_answer(
+                formatted_question, sampled_caps, num_frames
             )
-            answer_idx = parse_text_find_number(answer)
+            answer = parse_text_find_number(answer_str)
 
     ### Step 3 ###
     if confidence < 3:
@@ -322,48 +311,44 @@ def run_one_question(video_id, ann, caps, all_answers):
             }
             candiate_descriptions = generate_description_step(
                 formatted_question,
-                video_caption_new,
+                sampled_caps,
                 num_frames,
                 segment_des,
             )
-            # continue
             parsed_candiate_descriptions = parse_json(candiate_descriptions)
-            frame_idx, frame_lenth = frame_retrieval_seg_ego(
+            frame_idx = frame_retrieval_seg_ego(
                 parsed_candiate_descriptions["frame_descriptions"], video_id, sample_idx
             )
-            for k, desc in enumerate(
-                parsed_candiate_descriptions["frame_descriptions"]
-            ):
-                desc["selected frame"] = frame_idx[k]
-                sample_idx.append(frame_idx[k])
-            sample_idx = list(set(sample_idx))
-            sample_idx = sorted(sample_idx)
-            logger.info(str(sample_idx))
-            video_caption_new = read_caption(
-                caps, sample_idx
+            logger.info(f"Step 3: {frame_idx}")
+            sample_idx += frame_idx
+            sample_idx = sorted(list(set(sample_idx)))
+            sampled_caps = read_caption(caps, sample_idx)
+            answer_str = generate_final_answer(
+                formatted_question, sampled_caps, num_frames
             )
-            answer = generate_final_answer(
-                formatted_question, video_caption_new, num_frames
-            )
-            answer_idx = parse_text_find_number(answer)
-            count_frame = len(sample_idx)
+            answer = parse_text_find_number(answer_str)
         except Exception as e:
             logger.error(f"Step 3 Error: {e}")
-            answer = generate_final_answer(
-                formatted_question, video_caption_new, num_frames
+            answer_str = generate_final_answer(
+                formatted_question, sampled_caps, num_frames
             )
-            answer_idx = parse_text_find_number(answer)
-    if answer_idx == -1:
+            answer = parse_text_find_number(answer_str)
+    if answer == -1:
         logger.info("Answer Index Not Found!")
-        answer_idx = random.randint(0, 4)
-    logger.info(video_id + "/" + str(answer_idx) + "/" + str(ann["truth"]))
+        answer = random.randint(0, 4)
+
+    logger.info(f"Finished video: {video_id}/{answer}/{ann['truth']}")
 
     label = int(ann["truth"])
-    corr = int(label == answer_idx)
+    corr = int(label == answer)
     count_frame = len(sample_idx)
 
-    all_answers[video_id] = (answer_idx, corr, count_frame)
-    return corr, count_frame
+    logs[video_id] = {
+        "answer": answer,
+        "label": label,
+        "corr": corr,
+        "count_frame": count_frame,
+    }
 
 
 def main():
