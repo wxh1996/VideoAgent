@@ -44,34 +44,28 @@ llm_cache = redis_cli
 
 
 def parse_text_find_number(text):
-    text = parse_json(text)
+    item = parse_json(text)
     try:
-        match = int(text["final_answer"])
-        logger.info(text)
+        match = int(item["final_answer"])
         if match in range(-1, 5):
-            # Return the found number
             return match
         else:
-            logger.info("Answer Index Not Found!")
             return random.randint(0, 4)
     except Exception as e:
-        logger.error(f"LLM Error: {e}")
+        logger.error(f"Answer Parsing Error: {e}")
         return -1
 
 
 def parse_text_find_confidence(text):
-    text = parse_json(text)
+    item = parse_json(text)
     try:
-        match = int(text["confidence"])
-        logger.info(text)
+        match = int(item["confidence"])
         if match in range(1, 4):
-            # Return the found number
             return match
         else:
-            logger.info("Answer Index Not Found!")
             return random.randint(1, 3)
     except Exception as e:
-        logger.error(f"LLM Error: {e}")
+        logger.error(f"Confidence Parsing Error: {e}")
         return 1
 
 
@@ -318,12 +312,9 @@ def parse_json(text):
 
 def read_caption(captions, sample_idx):
     video_caption = {}
-    video_caption_raw = {}
     for idx in sample_idx:
         video_caption[f"frame {idx}"] = captions[idx - 1]
-        video_caption_raw[idx] = captions[idx - 1]
-        print(f"{idx, captions[idx-1]=}")
-    return video_caption, video_caption_raw
+    return video_caption
 
 
 def run_one_question(idx, video_id, ann, all_caps, all_answers):
@@ -345,7 +336,7 @@ def run_one_question(idx, video_id, ann, all_caps, all_answers):
     # import pdb; pdb.set_trace()
     num_frames = len(all_caps[video_id])
     sample_idx = np.linspace(1, num_frames, num=5, dtype=int).tolist()
-    video_caption_new, video_caption_raw = read_caption(all_caps[video_id], sample_idx)
+    video_caption_new = read_caption(all_caps[video_id], sample_idx)
     previous_prompt, answer = ask_gpt_caption(
         formatted_question, video_caption_new, num_frames
     )
@@ -386,7 +377,7 @@ def run_one_question(idx, video_id, ann, all_caps, all_answers):
             sample_idx = list(set(sample_idx))
             sample_idx = sorted(sample_idx)
             logger.info(str(sample_idx))
-            video_caption_new, video_caption_raw = read_caption(
+            video_caption_new = read_caption(
                 all_caps[video_id], sample_idx
             )
 
@@ -435,7 +426,7 @@ def run_one_question(idx, video_id, ann, all_caps, all_answers):
             sample_idx = list(set(sample_idx))
             sample_idx = sorted(sample_idx)
             logger.info(str(sample_idx))
-            video_caption_new, video_caption_raw = read_caption(
+            video_caption_new = read_caption(
                 all_caps[video_id], sample_idx
             )
             answer, _ = generate_final_answer(
