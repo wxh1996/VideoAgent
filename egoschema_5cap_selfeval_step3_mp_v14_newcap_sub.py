@@ -2,22 +2,15 @@ from openai import OpenAI
 
 client = OpenAI()
 
-import copy
-import csv
 import json
 import logging
-import os
 import random
 import re
-import threading
 from concurrent.futures import ThreadPoolExecutor
 
-import lmdb
 import numpy as np
 import redis
-import requests
 
-from global_vars import LLM_CACHE_FILE
 from utils_clip_xiaohan import frame_retrieval_seg_ego
 from utils_general import get_from_cache, save_to_cache
 
@@ -152,7 +145,7 @@ def generate_final_answer(question, caption, num_frames):
     return response
 
 
-def generate_description_step(question, caption, num_frames, segment_des, seg_id):
+def generate_description_step(question, caption, num_frames, segment_des):
     formatted_description = {
         "frame_descriptions": [
             {"segment_id": "1", "duration": "xxx - xxx", "description": "frame of xxx"},
@@ -177,7 +170,7 @@ def generate_description_step(question, caption, num_frames, segment_des, seg_id
     2. Determine which segments are likely to contain frames that are most relevant to the question. These frames should capture key visual elements, such as objects, humans, interactions, actions, and scenes, that are supportive to answer the question.
     For each frame identified as potentially relevant, provide a concise description focusing on essential visual elements. Use a single sentence per frame. If the specifics of a segment's visual content are uncertain based on the current information, use placeholders for specific actions or objects, but ensure the description still conveys the segment's relevance to the query.
     Select multiple frames from one segment if necessary to gather comprehensive insights. 
-    Return the descriptions and the segment id in JSON format, note "segment_id" must be smaller than {seg_id}, "duration" should be the same as candiate segments:
+    Return the descriptions and the segment id in JSON format, note "segment_id" must be smaller than {len(segment_des) + 1}, "duration" should be the same as candiate segments:
     ```
     {formatted_description}
     ```
@@ -279,24 +272,17 @@ def run_one_question(video_id, ann, caps, all_answers):
 
     ### Step 2 ###
     if confidence < 3:
-        logger.info("GPT Not Sure, Do locaization!")
         try:
-            duration_des = [
-                str(sample_idx[i]) + "-" + str(sample_idx[i + 1])
+            segment_des = {
+                i + 1: f"{sample_idx[i]}-{sample_idx[i + 1]}"
                 for i in range(len(sample_idx) - 1)
-            ]
-            segment_des = {}
-            for seg_id, duration in enumerate(duration_des):
-                segment_des[seg_id + 1] = duration
+            }
             candiate_descriptions = generate_description_step(
                 formatted_question,
                 video_caption_new,
                 num_frames,
                 segment_des,
-                seg_id + 2,
             )
-            # candiate_descriptions, _ = generate_description(formatted_question, video_caption_new, num_frames)
-            # continue
             parsed_candiate_descriptions = parse_json(candiate_descriptions)
             frame_idx, frame_lenth = frame_retrieval_seg_ego(
                 parsed_candiate_descriptions["frame_descriptions"], video_id, sample_idx
@@ -321,29 +307,24 @@ def run_one_question(video_id, ann, caps, all_answers):
             confidence = parse_text_find_confidence(confidence)
             count_frame = len(sample_idx)
         except Exception as e:
-            logger.error(f"LLM Error: {e}")
+            logger.error(f"Step 2 Error: {e}")
             answer = generate_final_answer(
                 formatted_question, video_caption_new, num_frames
             )
             answer_idx = parse_text_find_number(answer)
-    # import pdb; pdb.set_trace()
 
+    ### Step 3 ###
     if confidence < 3:
-        logger.info("GPT Not Sure, Do locaization!")
         try:
-            duration_des = [
-                str(sample_idx[i]) + "-" + str(sample_idx[i + 1])
+            segment_des = {
+                i + 1: f"{sample_idx[i]}-{sample_idx[i + 1]}"
                 for i in range(len(sample_idx) - 1)
-            ]
-            segment_des = {}
-            for seg_id, duration in enumerate(duration_des):
-                segment_des[seg_id + 1] = duration
+            }
             candiate_descriptions = generate_description_step(
                 formatted_question,
                 video_caption_new,
                 num_frames,
                 segment_des,
-                seg_id + 2,
             )
             # continue
             parsed_candiate_descriptions = parse_json(candiate_descriptions)
@@ -367,7 +348,7 @@ def run_one_question(video_id, ann, caps, all_answers):
             answer_idx = parse_text_find_number(answer)
             count_frame = len(sample_idx)
         except Exception as e:
-            logger.error(f"LLM Error: {e}")
+            logger.error(f"Step 3 Error: {e}")
             answer = generate_final_answer(
                 formatted_question, video_caption_new, num_frames
             )
@@ -375,15 +356,11 @@ def run_one_question(video_id, ann, caps, all_answers):
     if answer_idx == -1:
         logger.info("Answer Index Not Found!")
         answer_idx = random.randint(0, 4)
-    # print(answer)
     logger.info(video_id + "/" + str(answer_idx) + "/" + str(ann["truth"]))
     if int(ann["truth"]) == answer_idx:
         corr += 1.0
 
     all_answers[video_id] = (answer_idx, corr, count_frame)
-    # logger.info('acc:' + str(corr/(idx+1)))
-    # logger.info('Ave Frame: ' + str(count_frame/(idx+1)))
-    # Save the answer to a JSON file
     return corr, count_frame
 
 
