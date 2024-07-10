@@ -1,9 +1,7 @@
 import logging
-from typing import Dict, List, Optional
+from typing import Optional
 
-import lmdb
 import redis
-from PIL import Image
 
 
 def get_from_cache(key: str, redis_env: redis.Redis) -> Optional[str]:

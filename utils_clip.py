@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 import requests
 
-CLIP_URL = "http://pasteur8:8888"
+CLIP_URL = "http://localhost:8888"
 
 
 def get_embeddings(inputs: List[str], modality: str, url: str) -> np.ndarray:

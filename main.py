@@ -23,8 +23,6 @@ formatter = logging.Formatter(
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
-# llm_cache = lmdb.open(LLM_CACHE_FILE, map_size=int(1e11))
-video_frame_path = "/pasteur/u/xhanwang/VideoAgent/egoschema/val_video_q1_fps1_frames"
 
 redis_cli = redis.Redis(host="localhost", port=6379, db=0)
 redis_cli.config_set("save", "60 1")
