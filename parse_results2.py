@@ -2,7 +2,7 @@ import json
 
 data = json.load(
     open(
-        "egochema_subset_5cap_selfevalCoT_step3_recap_eva448_newcap_v14_allfeat_subset_final.json"
+        "egoschema_subset.json"
     )
 )
 print(len(data))

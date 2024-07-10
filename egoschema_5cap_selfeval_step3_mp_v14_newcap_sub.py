@@ -17,7 +17,7 @@ from utils_general import get_from_cache, save_to_cache
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 file_handler = logging.FileHandler(
-    "egochema_subset_5cap_selfevalCoT_step3_recap_eva448_newcap_v14_allfeat_subset_final.log"
+    "egoschema_subset.log"
 )
 formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(message)s (line %(lineno)d)"
@@ -358,10 +358,10 @@ def main():
     
     anns = json.load(open(input_ann_file, "r"))
     all_caps = json.load(open(all_cap_file, "r"))
-    all_answers = {}
+    logs = {}
 
     tasks = [
-        (video_id, anns[video_id], all_caps[video_id], all_answers)
+        (video_id, anns[video_id], all_caps[video_id], logs)
         for video_id in list(anns.keys())
     ]
     with ThreadPoolExecutor(max_workers=1) as executor:
@@ -369,8 +369,8 @@ def main():
             lambda p: run_one_question(*p), tasks
         )  # Unpack each tuple in the tasks list
 
-    json_file_name = "egochema_subset_5cap_selfevalCoT_step3_recap_eva448_newcap_v14_allfeat_subset_final.json"
-    json.dump(all_answers, open(json_file_name, "w"))
+    json_file_name = "egoschema_subset.json"
+    json.dump(logs, open(json_file_name, "w"))
 
 
 if __name__ == "__main__":
