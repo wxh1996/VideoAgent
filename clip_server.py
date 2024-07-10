@@ -1,12 +1,12 @@
 import json
 import logging
+import sys
 from typing import List
 
-import sys
 sys.path.append("/pasteur/u/xhanwang/VideoAgent/eva/EVA/EVA-CLIP-18B/shinji")
-import numpy as np
 # import open_clip
 import eva_clip as open_clip
+import numpy as np
 import torch
 import torch.nn.functional as F
 from flask import Flask, jsonify, request
@@ -22,11 +22,9 @@ CLIP_DATASET = "eva_clip"
 BATCH_SIZE = 32
 DEVICE = "cuda"
 
-(
-    model,
-    _,
-    preprocess,
-) = open_clip.create_model_and_transforms(CLIP_MODEL, pretrained=CLIP_DATASET, force_custom_clip=True)
+(model, _, preprocess,) = open_clip.create_model_and_transforms(
+    CLIP_MODEL, pretrained=CLIP_DATASET, force_custom_clip=True
+)
 model = model.to(DEVICE).eval()
 tokenizer = open_clip.get_tokenizer(CLIP_MODEL)
 
@@ -61,6 +59,7 @@ def get_text_embeddings(texts: List[str]) -> List[List[float]]:
             else:
                 embeddings = np.concatenate((embeddings, text_features))
     return embeddings.tolist()
+
 
 @app.route("/", methods=["POST"])
 def interact_with_clip():
