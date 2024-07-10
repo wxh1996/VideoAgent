@@ -1,10 +1,6 @@
 import json
 
-data = json.load(
-    open(
-        "egoschema_subset.json"
-    )
-)
+data = json.load(open("egoschema_subset.json"))
 print(len(data))
 
 accs = []

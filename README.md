@@ -30,9 +30,8 @@ Long-form video understanding represents a significant challenge within computer
 
 3. Eval on EgoSchema:
   ```bash
-  python egoschema_5cap_selfeval_step3_mp_v14_newcap_sub.py
-  python egoschema_5cap_selfeval_step3_mp_v14_newcap_full.py
-  parse_results.py
+  python main.py
+  python parse_results.py
   ```
 
 

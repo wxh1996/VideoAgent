@@ -22,7 +22,11 @@ CLIP_DATASET = "eva_clip"
 BATCH_SIZE = 32
 DEVICE = "cuda"
 
-(model, _, preprocess,) = open_clip.create_model_and_transforms(
+(
+    model,
+    _,
+    preprocess,
+) = open_clip.create_model_and_transforms(
     CLIP_MODEL, pretrained=CLIP_DATASET, force_custom_clip=True
 )
 model = model.to(DEVICE).eval()

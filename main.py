@@ -16,9 +16,7 @@ from utils_general import get_from_cache, save_to_cache
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-file_handler = logging.FileHandler(
-    "egoschema_subset.log"
-)
+file_handler = logging.FileHandler("egoschema_subset.log")
 formatter = logging.Formatter(
     "%(asctime)s - %(name)s - %(levelname)s - %(message)s (line %(lineno)d)"
 )
@@ -55,7 +53,6 @@ def parse_json(text):
         # If no JSON structure is found
         print("No valid JSON found in the text.")
         return None
-
 
 
 def parse_text_find_number(text):
@@ -104,7 +101,7 @@ def get_llm_response(
 
     print("Not hit cache", key)
     input()
-    
+
     for _ in range(3):
         try:
             if json_format:
@@ -236,10 +233,6 @@ def ask_gpt_caption_step(question, caption, num_frames):
     return prompt, response
 
 
-
-
-
-
 def read_caption(captions, sample_idx):
     video_caption = {}
     for idx in sample_idx:
@@ -355,7 +348,7 @@ def main():
     # input_ann_file = '/pasteur/u/xhanwang/VideoAgent/egoschema/fullset_anno.json'
     input_ann_file = "/pasteur/u/xhanwang/VideoAgent_release/egoschema/subset_anno.json"
     all_cap_file = "/pasteur/u/xhanwang/VideoAgent_release/egoschema/lavila_subset.json"
-    
+
     anns = json.load(open(input_ann_file, "r"))
     all_caps = json.load(open(all_cap_file, "r"))
     logs = {}
