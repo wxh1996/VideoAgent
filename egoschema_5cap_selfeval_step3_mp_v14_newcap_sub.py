@@ -135,9 +135,7 @@ def get_llm_response(
 
 
 def generate_final_answer(question, caption, num_frames):
-    # formatted_description = [{"1": "The boy is sitting on the floor in front of a Christmas tree, and he is wrapping a present with wrapping paper. He then puts a bow on the present and sits back down. The video does not provide any information about the boy reaching for or selecting a specific present."}, {"2": "The boy picks up the present and walks away, suggesting that he is likely going to open the present or play with it."}, {"4": "The boy might have moved to the couch to sit down and open the present, or he could have moved there to get a better view of the couch."}, {"6": "The context of the boy playing with the toy on the couch suggests that he is enjoying his present and engaging in imaginative play. The presence of the teddy bear on the couch further supports this idea. The boy's actions of picking up the present and playing with it indicate that he is excited and happy with his new toy."}]
     answer_format = {"final_answer": "xxx"}
-    # false_answer_format = {"final answer": "-1"}
     prompt = f"""
     Given a video that has {num_frames} frames, the frames are decoded at 1 fps. Given the following descriptions of the sampled frames in the video:
     {caption}
@@ -151,62 +149,10 @@ def generate_final_answer(question, caption, num_frames):
     """
     system_prompt = "You are a helpful assistant designed to output JSON."
     response = get_llm_response(system_prompt, prompt, json_format=True)
-    return response, None
-
-
-def generate_description(question, caption, num_frames):
-    # Send the question to GPT-4
-    formatted_description = {
-        "frame_descriptions": [
-            {
-                "segment_id": "1/2/3/4",
-                "duration": "xxx - xxx",
-                "description": "frame of xxx",
-            },
-            {
-                "segment_id": "1/2/3/4",
-                "duration": "xxx - xxx",
-                "description": "frame of xxx",
-            },
-            {
-                "segment_id": "1/2/3/4",
-                "duration": "xxx - xxx",
-                "description": "frame of xxx",
-            },
-        ]
-    }
-    prompt = f"""
-    Given a video that has {num_frames} frames, the frames are decoded at 1 fps. Given the following descriptions of five uniformly sampled frames in the video:
-    {caption}
-    #C to denote the sentence is an action done by the camera wearer (the person who recorded the video while wearing a camera on their head).
-    #O to denote that the sentence is an action done by someone other than the camera wearer.
-    To answer the following question: 
-    ``` 
-    {question}
-    ``` 
-    However, the information in the initial five frames is not suffient.
-    Objective:
-    Our goal is to identify additional frames that contain crucial information necessary for answering the question. These frames should not only address the query directly but should also complement the insights gleaned from the descriptions of the initial five frames.
-    To achieve this, we will:
-    1. Divide the video into four segments based on the intervals between the initial five frames.
-    2. Determine which segments are likely to contain frames that are most relevant to the question. These frames should capture key visual elements, such as objects, humans, interactions, actions, and scenes, that are supportive to answer the question.
-    For each frame identified as potentially relevant, provide a concise description focusing on essential visual elements. Use a single sentence per frame. If the specifics of a segment's visual content are uncertain based on the current information, use placeholders for specific actions or objects, but ensure the description still conveys the segment's relevance to the query.
-    Select multiple frames from one segment if necessary to gather comprehensive insights. 
-    ```
-    {formatted_description}
-    ```
-    """
-    # You need more information about the video.
-    # Please divide the video to 3 parts uniformly. Describe the visual content that can help localize one important frame to answer the question. The generated describtion should only contain short visual description. After that, to obtain more information to answer the question, please generate the coresponding sub-question or instruction for the selected frame. The generated sub-question or instruction will be fed into a vision language model along with the frame to get the desirable information.
-    # Just generate one sentence of visual description and one sub-question or instruction for one video snapshot. Return the descriptions and sub-questions in JSON format, {formatted_description}.
-    # """
-    system_prompt = "You are a helpful assistant designed to output JSON."
-    response = get_llm_response(system_prompt, prompt, json_format=True)
-    return response, None
+    return response
 
 
 def generate_description_step(question, caption, num_frames, segment_des, seg_id):
-    # Send the question to GPT-4
     formatted_description = {
         "frame_descriptions": [
             {"segment_id": "1", "duration": "xxx - xxx", "description": "frame of xxx"},
@@ -236,13 +182,9 @@ def generate_description_step(question, caption, num_frames, segment_des, seg_id
     {formatted_description}
     ```
     """
-    # You need more information about the video.
-    # Please divide the video to 3 parts uniformly. Describe the visual content that can help localize one important frame to answer the question. The generated describtion should only contain short visual description. After that, to obtain more information to answer the question, please generate the coresponding sub-question or instruction for the selected frame. The generated sub-question or instruction will be fed into a vision language model along with the frame to get the desirable information.
-    # Just generate one sentence of visual description and one sub-question or instruction for one video snapshot. Return the descriptions and sub-questions in JSON format, {formatted_description}.
-    # """
     system_prompt = "You are a helpful assistant designed to output JSON."
     response = get_llm_response(system_prompt, prompt, json_format=True)
-    return response, None
+    return response
 
 
 def self_eval(previous_prompt, answer):
@@ -262,13 +204,11 @@ def self_eval(previous_prompt, answer):
     """
     system_prompt = "You are a helpful assistant designed to output JSON."
     response = get_llm_response(system_prompt, prompt, json_format=True)
-    return None, response
+    return response
 
 
 def ask_gpt_caption(question, caption, num_frames):
     answer_format = {"final_answer": "xxx"}
-    # false_answer_format = {"final answer": "-1"}
-    # Send the question to GPT-4
     prompt = f"""
     Given a video that has {num_frames} frames, the frames are decoded at 1 fps. Given the following descriptions of five uniformly sampled frames in the video:
     {caption}
@@ -287,8 +227,6 @@ def ask_gpt_caption(question, caption, num_frames):
 
 def ask_gpt_caption_step(question, caption, num_frames):
     answer_format = {"final_answer": "xxx"}
-    # false_answer_format = {"final answer": "-1"}
-    # Send the question to GPT-4
     prompt = f"""
     Given a video that has {num_frames} frames, the frames are decoded at 1 fps. Given the following descriptions of the sampled frames in the video:
     {caption}
@@ -326,19 +264,20 @@ def run_one_question(video_id, ann, caps, all_answers):
         + "Here are the choices: "
         + " ".join([f"{i}. {ans}" for i, ans in enumerate(answers)])
     )
-    # import pdb; pdb.set_trace()
     num_frames = len(caps)
+
+    ### Step 1 ###
     sample_idx = np.linspace(1, num_frames, num=5, dtype=int).tolist()
     video_caption_new = read_caption(caps, sample_idx)
     previous_prompt, answer = ask_gpt_caption(
         formatted_question, video_caption_new, num_frames
     )
     answer_idx = parse_text_find_number(answer)
-    _, confidence = self_eval(previous_prompt, answer)
+    confidence = self_eval(previous_prompt, answer)
     confidence = parse_text_find_confidence(confidence)
     count_frame += 5
-    # import pdb; pdb.set_trace()
 
+    ### Step 2 ###
     if confidence < 3:
         logger.info("GPT Not Sure, Do locaization!")
         try:
@@ -349,7 +288,7 @@ def run_one_question(video_id, ann, caps, all_answers):
             segment_des = {}
             for seg_id, duration in enumerate(duration_des):
                 segment_des[seg_id + 1] = duration
-            candiate_descriptions, _ = generate_description_step(
+            candiate_descriptions = generate_description_step(
                 formatted_question,
                 video_caption_new,
                 num_frames,
@@ -378,12 +317,12 @@ def run_one_question(video_id, ann, caps, all_answers):
                 formatted_question, video_caption_new, num_frames
             )
             answer_idx = parse_text_find_number(answer)
-            _, confidence = self_eval(previous_prompt, answer)
+            confidence = self_eval(previous_prompt, answer)
             confidence = parse_text_find_confidence(confidence)
             count_frame = len(sample_idx)
         except Exception as e:
             logger.error(f"LLM Error: {e}")
-            answer, _ = generate_final_answer(
+            answer = generate_final_answer(
                 formatted_question, video_caption_new, num_frames
             )
             answer_idx = parse_text_find_number(answer)
@@ -399,7 +338,7 @@ def run_one_question(video_id, ann, caps, all_answers):
             segment_des = {}
             for seg_id, duration in enumerate(duration_des):
                 segment_des[seg_id + 1] = duration
-            candiate_descriptions, _ = generate_description_step(
+            candiate_descriptions = generate_description_step(
                 formatted_question,
                 video_caption_new,
                 num_frames,
@@ -422,14 +361,14 @@ def run_one_question(video_id, ann, caps, all_answers):
             video_caption_new = read_caption(
                 caps, sample_idx
             )
-            answer, _ = generate_final_answer(
+            answer = generate_final_answer(
                 formatted_question, video_caption_new, num_frames
             )
             answer_idx = parse_text_find_number(answer)
             count_frame = len(sample_idx)
         except Exception as e:
             logger.error(f"LLM Error: {e}")
-            answer, _ = generate_final_answer(
+            answer = generate_final_answer(
                 formatted_question, video_caption_new, num_frames
             )
             answer_idx = parse_text_find_number(answer)
@@ -452,6 +391,7 @@ def main():
     # input_ann_file = '/pasteur/u/xhanwang/VideoAgent/egoschema/fullset_anno.json'
     input_ann_file = "/pasteur/u/xhanwang/VideoAgent_release/egoschema/subset_anno.json"
     all_cap_file = "/pasteur/u/xhanwang/VideoAgent_release/egoschema/lavila_subset.json"
+    
     anns = json.load(open(input_ann_file, "r"))
     all_caps = json.load(open(all_cap_file, "r"))
     all_answers = {}
