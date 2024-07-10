@@ -43,6 +43,28 @@ print("[redis] last_save_timestamp", last_save_timestamp)
 llm_cache = redis_cli
 
 
+def parse_json(text):
+    try:
+        # First, try to directly parse the text as JSON
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # If direct parsing fails, use regex to extract JSON
+        json_pattern = r"\{.*?\}|\[.*?\]"  # Pattern for JSON objects and arrays
+
+        matches = re.findall(json_pattern, text, re.DOTALL)
+        for match in matches:
+            try:
+                match = match.replace("'", '"')
+                return json.loads(match)
+            except json.JSONDecodeError:
+                continue
+
+        # If no JSON structure is found
+        print("No valid JSON found in the text.")
+        return None
+
+
+
 def parse_text_find_number(text):
     item = parse_json(text)
     try:
@@ -283,31 +305,8 @@ def ask_gpt_caption_step(question, caption, num_frames):
     return prompt, response
 
 
-def save_to_json(answer, file_name):
-    # Save the answer to a JSON file
-    with open(file_name, "w") as json_file:
-        json.dump(answer, json_file)
 
 
-def parse_json(text):
-    try:
-        # First, try to directly parse the text as JSON
-        return json.loads(text)
-    except json.JSONDecodeError:
-        # If direct parsing fails, use regex to extract JSON
-        json_pattern = r"\{.*?\}|\[.*?\]"  # Pattern for JSON objects and arrays
-
-        matches = re.findall(json_pattern, text, re.DOTALL)
-        for match in matches:
-            try:
-                match = match.replace("'", '"')
-                return json.loads(match)
-            except json.JSONDecodeError:
-                continue
-
-        # If no JSON structure is found
-        print("No valid JSON found in the text.")
-        return None
 
 
 def read_caption(captions, sample_idx):
@@ -321,13 +320,7 @@ def run_one_question(video_id, ann, caps, all_answers):
     count_frame = 0
     corr = 0
     question = ann["question"]
-    answers = [
-        ann["option 0"],
-        ann["option 1"],
-        ann["option 2"],
-        ann["option 3"],
-        ann["option 4"],
-    ]
+    answers = [ann[f"option {i}"] for i in range(5)]
     formatted_question = (
         f"Here is the question: {question}\n"
         + "Here are the choices: "
@@ -473,7 +466,7 @@ def main():
         )  # Unpack each tuple in the tasks list
 
     json_file_name = "egochema_subset_5cap_selfevalCoT_step3_recap_eva448_newcap_v14_allfeat_subset_final.json"
-    save_to_json(all_answers, json_file_name)
+    json.dump(all_answers, open(json_file_name, "w"))
 
 
 if __name__ == "__main__":
