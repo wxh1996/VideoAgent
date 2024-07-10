@@ -1,7 +1,3 @@
-from openai import OpenAI
-
-client = OpenAI()
-
 import json
 import logging
 import random
@@ -9,7 +5,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
-import redis
+from openai import OpenAI
 
 from utils_clip import frame_retrieval_seg_ego
 from utils_general import get_from_cache, save_to_cache
@@ -24,12 +20,7 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 
-redis_cli = redis.Redis(host="localhost", port=6379, db=0)
-redis_cli.config_set("save", "60 1")
-last_save_timestamp = redis_cli.lastsave()
-print("[redis] last_save_timestamp", last_save_timestamp)
-
-llm_cache = redis_cli
+client = OpenAI()
 
 
 def parse_json(text):
@@ -91,7 +82,7 @@ def get_llm_response(
     ]
     key = json.dumps([model, messages])
     logger.info(messages)
-    cached_value = get_from_cache(key, llm_cache)
+    cached_value = get_from_cache(key)
     if cached_value is not None:
         logger.info("Cache Hit")
         logger.info(cached_value)
@@ -114,7 +105,7 @@ def get_llm_response(
                 )
             response = completion.choices[0].message.content
             logger.info(response)
-            save_to_cache(key, response, llm_cache)
+            save_to_cache(key, response)
             return response
         except Exception as e:
             logger.error(f"GPT Error: {e}")
