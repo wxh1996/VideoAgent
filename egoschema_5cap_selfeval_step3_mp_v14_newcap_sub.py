@@ -75,52 +75,47 @@ def parse_text_find_confidence(text):
         return 1
 
 
-def generate_last_answer(question, caption, num_frames):
-    answer_format = {"final_answer": "xxx"}
-    # false_answer_format = {"final answer": "-1"}
-    prompt = f"""
-    Given a video that has {num_frames} frames, the frames are decoded at 1 fps. Given the following descriptions of five uniformly sampled frames in the video:
-    {caption}
-    Please answer the following question: 
-    ``` 
-    {question}
-    ``` 
-    Please think carefully and write the best answer index in Json format {answer_format}. Note that only one answer is returned for the question.
-    """
-    model = "gpt-4-1106-preview"
+def get_llm_response(
+    system_prompt, prompt, json_format=True, model="gpt-4-1106-preview"
+):
     messages = [
         {
             "role": "system",
-            "content": "You are a helpful assistant designed to output JSON.",
+            "content": system_prompt,
         },
         {"role": "user", "content": prompt},
     ]
-    # import pdb; pdb.set_trace()
-    # print(messages)
     key = json.dumps([model, messages])
-    logger.info(prompt)
+    logger.info(messages)
     cached_value = get_from_cache(key, llm_cache)
     if cached_value is not None:
-        logger.debug(f"LLM Cache Hit")
+        logger.info("Cache Hit")
         logger.info(cached_value)
-        return cached_value, messages
+        return cached_value
 
+    print("Not hit cache", key)
+    input()
+    
     for _ in range(3):
         try:
-            completion = client.chat.completions.create(
-                model=model,
-                response_format={"type": "json_object"},
-                messages=messages,
-            )
+            if json_format:
+                completion = client.chat.completions.create(
+                    model=model,
+                    response_format={"type": "json_object"},
+                    messages=messages,
+                )
+            else:
+                completion = client.chat.completions.create(
+                    model=model, messages=messages
+                )
             response = completion.choices[0].message.content
-            save_to_cache(key, response, llm_cache)
-            # Extract the text part of the response
             logger.info(response)
-            return response, messages
+            save_to_cache(key, response, llm_cache)
+            return response
         except Exception as e:
-            logger.error(f"LLM Error: {e}")
+            logger.error(f"GPT Error: {e}")
             continue
-    return "LLM Error: Cannot get response."
+    return "GPT Error"
 
 
 def generate_final_answer(question, caption, num_frames):
@@ -138,40 +133,9 @@ def generate_final_answer(question, caption, num_frames):
     ``` 
     Please think carefully and write the best answer index in Json format {answer_format}. Note that only one answer is returned for the question, and you must select one answer index from the candidates.
     """
-    model = "gpt-4-1106-preview"
-    # import pdb; pdb.set_trace()
-    # print(messages)
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful assistant designed to output JSON.",
-        },
-        {"role": "user", "content": prompt},
-    ]
-    key = json.dumps([model, messages])
-    logger.info(prompt)
-    cached_value = get_from_cache(key, llm_cache)
-    if cached_value is not None:
-        logger.debug(f"LLM Cache Hit")
-        logger.info(cached_value)
-        return cached_value, messages
-
-    for _ in range(3):
-        try:
-            completion = client.chat.completions.create(
-                model=model,
-                response_format={"type": "json_object"},
-                messages=messages,
-            )
-            response = completion.choices[0].message.content
-            save_to_cache(key, response, llm_cache)
-            # Extract the text part of the response
-            logger.info(response)
-            return response, messages
-        except Exception as e:
-            logger.error(f"LLM Error: {e}")
-            continue
-    return "LLM Error: Cannot get response."
+    system_prompt = "You are a helpful assistant designed to output JSON."
+    response = get_llm_response(system_prompt, prompt, json_format=True)
+    return response, None
 
 
 def generate_description(question, caption, num_frames):
@@ -220,38 +184,9 @@ def generate_description(question, caption, num_frames):
     # Please divide the video to 3 parts uniformly. Describe the visual content that can help localize one important frame to answer the question. The generated describtion should only contain short visual description. After that, to obtain more information to answer the question, please generate the coresponding sub-question or instruction for the selected frame. The generated sub-question or instruction will be fed into a vision language model along with the frame to get the desirable information.
     # Just generate one sentence of visual description and one sub-question or instruction for one video snapshot. Return the descriptions and sub-questions in JSON format, {formatted_description}.
     # """
-    model = "gpt-4-1106-preview"
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful assistant designed to output JSON.",
-        },
-        {"role": "user", "content": prompt},
-    ]
-    key = json.dumps([model, messages])
-    logger.info(prompt)
-    cached_value = get_from_cache(key, llm_cache)
-    if cached_value is not None:
-        logger.debug(f"LLM Cache Hit")
-        logger.info(cached_value)
-        return cached_value, messages
-
-    for _ in range(3):
-        try:
-            completion = client.chat.completions.create(
-                model=model,
-                response_format={"type": "json_object"},
-                messages=messages,
-            )
-            response = completion.choices[0].message.content
-            save_to_cache(key, response, llm_cache)
-            logger.info(response)
-            # Extract the text part of the response
-            return response, messages
-        except Exception as e:
-            logger.error(f"LLM Error: {e}")
-            continue
-    return "LLM Error: Cannot get response."
+    system_prompt = "You are a helpful assistant designed to output JSON."
+    response = get_llm_response(system_prompt, prompt, json_format=True)
+    return response, None
 
 
 def generate_description_step(question, caption, num_frames, segment_des, seg_id):
@@ -289,38 +224,9 @@ def generate_description_step(question, caption, num_frames, segment_des, seg_id
     # Please divide the video to 3 parts uniformly. Describe the visual content that can help localize one important frame to answer the question. The generated describtion should only contain short visual description. After that, to obtain more information to answer the question, please generate the coresponding sub-question or instruction for the selected frame. The generated sub-question or instruction will be fed into a vision language model along with the frame to get the desirable information.
     # Just generate one sentence of visual description and one sub-question or instruction for one video snapshot. Return the descriptions and sub-questions in JSON format, {formatted_description}.
     # """
-    model = "gpt-4-1106-preview"
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful assistant designed to output JSON.",
-        },
-        {"role": "user", "content": prompt},
-    ]
-    key = json.dumps([model, messages])
-    logger.info(prompt)
-    cached_value = get_from_cache(key, llm_cache)
-    if cached_value is not None:
-        logger.debug(f"LLM Cache Hit")
-        logger.info(cached_value)
-        return cached_value, messages
-
-    for _ in range(3):
-        try:
-            completion = client.chat.completions.create(
-                model=model,
-                response_format={"type": "json_object"},
-                messages=messages,
-            )
-            response = completion.choices[0].message.content
-            save_to_cache(key, response, llm_cache)
-            logger.info(response)
-            # Extract the text part of the response
-            return response, messages
-        except Exception as e:
-            logger.error(f"LLM Error: {e}")
-            continue
-    return "LLM Error: Cannot get response."
+    system_prompt = "You are a helpful assistant designed to output JSON."
+    response = get_llm_response(system_prompt, prompt, json_format=True)
+    return response, None
 
 
 def self_eval(previous_prompt, answer):
@@ -338,38 +244,9 @@ def self_eval(previous_prompt, answer):
     Evaluate based on the relevance, completeness, and clarity of the provided information in relation to the decision-making context.
     Please generate the confidence with JSON format {confidence_format}
     """
-    model = "gpt-4-1106-preview"
-    messages = [
-        {
-            "role": "system",
-            "content": "You are a helpful assistant designed to output JSON.",
-        },
-        {"role": "user", "content": prompt},
-    ]
-    key = json.dumps([model, messages])
-    logger.info(prompt)
-    cached_value = get_from_cache(key, llm_cache)
-    if cached_value is not None:
-        logger.debug(f"LLM Cache Hit")
-        logger.info(cached_value)
-        return prompt, cached_value
-
-    for _ in range(3):
-        try:
-            completion = client.chat.completions.create(
-                model=model,
-                response_format={"type": "json_object"},
-                messages=messages,
-            )
-            response = completion.choices[0].message.content
-            save_to_cache(key, response, llm_cache)
-            logger.info(response)
-            # Extract the text part of the response
-            return prompt, response
-        except Exception as e:
-            logger.error(f"LLM Error: {e}")
-            continue
-    return "LLM Error: Cannot get response."
+    system_prompt = "You are a helpful assistant designed to output JSON."
+    response = get_llm_response(system_prompt, prompt, json_format=True)
+    return None, response
 
 
 def ask_gpt_caption(question, caption, num_frames):
@@ -387,35 +264,9 @@ def ask_gpt_caption(question, caption, num_frames):
     ``` 
     Please think step-by-step and write the best answer index in Json format {answer_format}. Note that only one answer is returned for the question.
     """
-    model = "gpt-4-1106-preview"
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": prompt},
-    ]
-    key = json.dumps([model, messages])
-    logger.info(prompt)
-    cached_value = get_from_cache(key, llm_cache)
-    if cached_value is not None:
-        logger.debug(f"LLM Cache Hit")
-        logger.info(cached_value)
-        return prompt, cached_value
-
-    for _ in range(3):
-        try:
-            completion = client.chat.completions.create(
-                model=model,
-                # response_format={ "type": "json_object" },
-                messages=messages,
-            )
-            response = completion.choices[0].message.content
-            save_to_cache(key, response, llm_cache)
-            logger.info(response)
-            # Extract the text part of the response
-            return prompt, response
-        except Exception as e:
-            logger.error(f"LLM Error: {e}")
-            continue
-    return "LLM Error: Cannot get response."
+    system_prompt = "You are a helpful assistant."
+    response = get_llm_response(system_prompt, prompt, json_format=False)
+    return prompt, response
 
 
 def ask_gpt_caption_step(question, caption, num_frames):
@@ -433,35 +284,9 @@ def ask_gpt_caption_step(question, caption, num_frames):
     ``` 
     Please think step-by-step and write the best answer index in Json format {answer_format}. Note that only one answer is returned for the question.
     """
-    model = "gpt-4-1106-preview"
-    messages = [
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": prompt},
-    ]
-    key = json.dumps([model, messages])
-    logger.info(prompt)
-    cached_value = get_from_cache(key, llm_cache)
-    if cached_value is not None:
-        logger.debug(f"LLM Cache Hit")
-        logger.info(cached_value)
-        return prompt, cached_value
-
-    for _ in range(3):
-        try:
-            completion = client.chat.completions.create(
-                model=model,
-                # response_format={ "type": "json_object" },
-                messages=messages,
-            )
-            response = completion.choices[0].message.content
-            save_to_cache(key, response, llm_cache)
-            logger.info(response)
-            # Extract the text part of the response
-            return prompt, response
-        except Exception as e:
-            logger.error(f"LLM Error: {e}")
-            continue
-    return "LLM Error: Cannot get response."
+    system_prompt = "You are a helpful assistant."
+    response = get_llm_response(system_prompt, prompt, json_format=False)
+    return prompt, response
 
 
 def save_to_json(answer, file_name):
@@ -651,7 +476,7 @@ def main():
         (idx, video_id, anns[video_id], all_caps, all_answers)
         for idx, video_id in enumerate(list(anns.keys()))
     ]
-    with ThreadPoolExecutor(max_workers=50) as executor:
+    with ThreadPoolExecutor(max_workers=1) as executor:
         executor.map(
             lambda p: run_one_question(*p), tasks
         )  # Unpack each tuple in the tasks list
