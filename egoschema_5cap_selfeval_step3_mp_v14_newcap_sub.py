@@ -357,8 +357,10 @@ def run_one_question(video_id, ann, caps, all_answers):
         logger.info("Answer Index Not Found!")
         answer_idx = random.randint(0, 4)
     logger.info(video_id + "/" + str(answer_idx) + "/" + str(ann["truth"]))
-    if int(ann["truth"]) == answer_idx:
-        corr += 1.0
+
+    label = int(ann["truth"])
+    corr = int(label == answer_idx)
+    count_frame = len(sample_idx)
 
     all_answers[video_id] = (answer_idx, corr, count_frame)
     return corr, count_frame
