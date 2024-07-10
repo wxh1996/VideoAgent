@@ -18,7 +18,7 @@ Long-form video understanding represents a significant challenge within computer
 
 ## 🚀 Getting Started
 
-1. Install dependencies:
+<!-- 1. Install dependencies:
   ```bash
   pip install -r requirements.txt
   ```
@@ -28,8 +28,9 @@ Long-form video understanding represents a significant challenge within computer
   python clip_server.py 8888
   ```
 
-3. Eval on EgoSchema:
+3. Eval on EgoSchema: -->
   ```bash
+  download files from https://drive.google.com/drive/folders/1ZNty_n_8Jp8lObudbckkObHnYCvakgvY?usp=sharing
   python main.py
   python parse_results.py
   ```

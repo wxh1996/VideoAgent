@@ -12,9 +12,7 @@ def get_embeddings(inputs: List[str]) -> np.ndarray:
 
 
 def frame_retrieval_seg_ego(descriptions, video_id, sample_idx):
-    frame_embeddings = np.load(
-        f"/pasteur/u/yuhuiz/VideoAgent/0_extract_clip_features/ego_features_448/{video_id}.npy"
-    )
+    frame_embeddings = np.load(f"ego_features_448/{video_id}.npy")
     text_embedding = get_embeddings(
         [description["description"] for description in descriptions]
     )

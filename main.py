@@ -334,9 +334,10 @@ def run_one_question(video_id, ann, caps, logs):
 
 
 def main():
-    # input_ann_file = '/pasteur/u/xhanwang/VideoAgent/egoschema/fullset_anno.json'
-    input_ann_file = "/pasteur/u/xhanwang/VideoAgent_release/egoschema/subset_anno.json"
-    all_cap_file = "/pasteur/u/xhanwang/VideoAgent_release/egoschema/lavila_subset.json"
+    # if running full set, change subset to fullset
+    input_ann_file = "subset_anno.json"
+    all_cap_file = "lavila_subset.json"
+    json_file_name = "egoschema_subset.json"
 
     anns = json.load(open(input_ann_file, "r"))
     all_caps = json.load(open(all_cap_file, "r"))
@@ -347,11 +348,8 @@ def main():
         for video_id in list(anns.keys())
     ]
     with ThreadPoolExecutor(max_workers=1) as executor:
-        executor.map(
-            lambda p: run_one_question(*p), tasks
-        )  # Unpack each tuple in the tasks list
+        executor.map(lambda p: run_one_question(*p), tasks)
 
-    json_file_name = "egoschema_subset.json"
     json.dump(logs, open(json_file_name, "w"))
 
 
